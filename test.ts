@@ -1,8 +1,8 @@
 require('dotenv-flow').config();
 
 import SeamORM from './src';
-import { StaticImplements } from './src/types';
-import { ORMColumns, ORMEntity, ORMEntityStatic, ORMEntityPKeys } from './src/ORMEntity';
+import { ORMColumns, ORMEntityStatic, ORMEntityPKeys, StaticImplements } from './src/types';
+import { ORMEntity } from './src/ORMEntity';
 import { vBoolean, vDateOrNull, vString, vStringOrNull, vUUID } from './src/ORMValue';
 
 type UserColumns = ORMColumns<typeof User.ColumnValue>;

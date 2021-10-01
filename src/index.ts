@@ -1,5 +1,5 @@
 import pg from './pg';
-import { ORMEntityStatic } from './ORMEntity';
+import { ORMEntityStatic } from './types';
 
 type Tables = {
   [className: string]: ORMEntityStatic<any>

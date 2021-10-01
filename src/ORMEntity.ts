@@ -1,28 +1,7 @@
 import { Knex } from 'knex';
-import { ORMValue } from './ORMValue';
 import pg from './pg';
-import { JSPrimitive, ConstructorOf } from './types';
+import { ORMEntityStatic, ORMEntityConstructor, ORMColumnPrimitives, ORMColumnPrimitivesPartial } from './types';
 
-export type ORMColumns<Columns> = { [columnName in keyof Columns]: ORMValue };
-export type ORMEntityPKeys<Columns> = Array<keyof Columns>;
-type ORMColumnConstructors<Columns> = { [columnName in keyof Columns]: ConstructorOf<ORMValue> };
-type ORMColumnPrimitives<Columns> = { [columnName in keyof Columns]: JSPrimitive };
-type ORMColumnPrimitivesPartial<Columns> = Partial<ORMColumnPrimitives<Columns>>;
-
-export interface ORMEntityStatic<Columns> {
-  hydrate (row: ORMColumnPrimitives<Columns>): ORMEntity<Columns>,
-  new (params: ORMEntityConstructor<Columns>): ORMEntity<Columns>,
-  table: string,
-  ColumnValue: ORMColumnConstructors<Columns>,
-  pkeys: ORMEntityPKeys<Columns>,
-  buildSelect (): string[],
-  validate (functionName: string, values: ORMColumnPrimitivesPartial<Columns>): Columns,
-};
-
-interface ORMEntityConstructor<Columns> {
-  def: ORMEntityStatic<Columns>,
-  values: Columns,
-};
 export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns> {
   readonly def: ORMEntityStatic<Columns>;
   readonly values: Columns;
