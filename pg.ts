@@ -1,5 +1,5 @@
 import Knex from 'knex';
-// TODO add dotenv
+require('dotenv-flow').config();
 import pg from 'pg';
 
 // BigInt to int
@@ -12,7 +12,7 @@ export default Knex({
   connection: {
     database: process.env.PGDATABASE,
     host: process.env.PGHOST,
-    port: process.env.PGPORT,
+    port: process.env.PGPORT as any,
     user: process.env.PGUSER,
     password: process.env.PGPASSWORD,
     ssl: false
