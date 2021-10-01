@@ -1,5 +1,5 @@
 import { validate as uuid } from 'uuid';
-export type JSPrimitive = string | number | boolean | Date | null | undefined;
+import { JSPrimitive } from './types';
 
 export class ORMTypeError extends TypeError {
   constructor (

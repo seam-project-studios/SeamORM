@@ -1,6 +1,8 @@
-import pg from './pg';
+require('dotenv-flow').config();
+
 import SeamORM from './src';
-import { ORMColumns, ORMEntity, ORMEntityStatic, ORMEntityPKeys, StaticImplements } from './src/ORMEntity';
+import { StaticImplements } from './src/types';
+import { ORMColumns, ORMEntity, ORMEntityStatic, ORMEntityPKeys } from './src/ORMEntity';
 import { vBoolean, vDateOrNull, vString, vStringOrNull, vUUID } from './src/ORMValue';
 
 type UserColumns = ORMColumns<typeof User.ColumnValue>;
@@ -34,20 +36,14 @@ class StaffUser extends ORMEntity<StaffUserColumns> {
 };
 
 (async () => {
-  await SeamORM(pg, {
-    User, StaffUser
-  });
+  const knex = await SeamORM({ User, StaffUser });
 
-  const q = pg.queryBuilder().where({ id: 'e5335a91-bdc3-4461-aa7a-7992ff29e139' });
+  const q = knex.queryBuilder(); //.where({ id: 'e5335a91-bdc3-4461-aa7a-7992ff29e139' });
   for await (const row of User.query(q)) {
     console.log(row.toJSON());
-    // await row.update({ firstName: 'testington' });
+    // await row.update({ firstName: 'Firm' });
     // console.log(row.toJSON());
   }
-
-  const su = await StaffUser.insert([{
-    id: 'test'
-  }]);
 
   for await (const row of StaffUser.query()) {
     console.log(JSON.stringify(row, null, 2));

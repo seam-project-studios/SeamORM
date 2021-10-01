@@ -8,7 +8,6 @@
   },
   "dependencies": {
     "config": "^3.3.6",
-    "dotenv-flow": "^3.2.0",
     "knex": "^0.95.11",
     "pg": "^8.7.1",
     "pg-query-stream": "^4.2.1",
@@ -20,6 +19,7 @@
     "@types/config": "^0.0.39",
     "@types/pg": "^8.6.1",
     "@types/uuid": "^8.3.1",
-    "cross-env": "^7.0.3"
+    "cross-env": "^7.0.3",
+    "dotenv-flow": "^3.2.0"
   }
 }

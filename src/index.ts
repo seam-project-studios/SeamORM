@@ -1,16 +1,15 @@
-import { Knex } from 'knex';
+import pg from './pg';
 import { ORMEntityStatic } from './ORMEntity';
 
 type Tables = {
   [className: string]: ORMEntityStatic<any>
 };
 export default async function (
-  client: Knex,
   tables: Tables
-) {
+): Promise<typeof pg> {
   console.log('SeamORM: Checking tables...');
 
-  const { rows: pgTables } = await client.raw(`
+  const { rows: pgTables } = await pg.raw(`
     SELECT *
     FROM information_schema.tables
     WHERE table_schema='public'
@@ -23,7 +22,7 @@ export default async function (
       continue;
     }
     
-    const { rows: pgColumns } = await client.raw(`
+    const { rows: pgColumns } = await pg.raw(`
       SELECT
         c.table_name, c.column_name, c.data_type, c.column_default, c.is_nullable,
         tc.constraint_type = 'PRIMARY KEY' as primary_key
@@ -65,4 +64,6 @@ export default async function (
       console.error(`SeamORM: Definition with no table found: ${tableName}`);
     }
   }
+
+  return pg;
 };
