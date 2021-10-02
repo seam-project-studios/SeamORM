@@ -47,15 +47,16 @@ export default async function (
     const tableKeys: string[] = [];
     for (const pgColumn of pgColumns) {
       const column = pgColumn.column_name;
-      if (!table.ColumnValue[column]) {
+      if (!table.columns[column]) {
         console.log(`SeamORM: Table column with no definition: ${tableName}.${column}`);
       }
       if (pgColumn.primary_key) {
         tableKeys.push(column);
       }
     }
-    if (table.pkeys.sort().toString() !== tableKeys.sort().toString()) {
-      throw new Error(`SeamORM: Table keys (${table.pkeys.toString()}) do not match database keys (${tableKeys.toString()})`);
+    const pKeys = Object.keys(table.columns).filter(key => table.columns[key].primaryKey === true).sort();
+    if (pKeys.toString() !== tableKeys.sort().toString()) {
+      throw new Error(`SeamORM: Table keys (${pKeys.toString()}) do not match database keys (${tableKeys.toString()})`);
     }
   }
 

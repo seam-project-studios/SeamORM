@@ -1,5 +1,5 @@
+import { Knex } from "knex";
 import { ORMEntity } from "./ORMEntity";
-import { ORMValue } from "./ORMValue";
 
 export function StaticImplements<T>() {
   return <U extends T>(constructor: U) => { constructor }
@@ -9,22 +9,24 @@ export type ConstructorOf<T> = {
   new (...args: any[]): T,
 };
 
-export type JSPrimitive = string | number | boolean | Date | null | undefined;
+export interface ORMColumn {
+  type: ConstructorOf<String | Number | Date | Boolean>,
+  primaryKey?: boolean,
+  selectable?: boolean,
+  required?: boolean,
+  nullable?: boolean,
+  valid?: (value: any) => boolean
+};
 
-export type ORMColumns<Columns> = { [columnName in keyof Columns]: ORMValue };
-export type ORMEntityPKeys<Columns> = Array<keyof Columns>;
-export type ORMColumnConstructors<Columns> = { [columnName in keyof Columns]: ConstructorOf<ORMValue> };
-export type ORMColumnPrimitives<Columns> = { [columnName in keyof Columns]: JSPrimitive };
-export type ORMColumnPrimitivesPartial<Columns> = Partial<ORMColumnPrimitives<Columns>>;
+export type ORMColumns<Columns, T = ORMColumn> = Record<keyof Columns, T>;
 
 export interface ORMEntityStatic<Columns> {
-  hydrate (row: ORMColumnPrimitives<Columns>): ORMEntity<Columns>,
-  new (params: ORMEntityConstructor<Columns>): ORMEntity<Columns>,
   table: string,
-  ColumnValue: ORMColumnConstructors<Columns>,
-  pkeys: ORMEntityPKeys<Columns>,
+  columns: ORMColumns<Columns>,
+  hydrate (row: ORMColumns<Columns, any>): ORMEntity<Columns>,
+  new (params: ORMEntityConstructor<Columns>): ORMEntity<Columns>,
   buildSelect (): string[],
-  validate (functionName: string, values: ORMColumnPrimitivesPartial<Columns>): Columns,
+  validate (method: 'insert' | 'update' | 'hydrate', values: Partial<ORMColumns<Columns, any>>): void,
 };
 
 export interface ORMEntityConstructor<Columns> {

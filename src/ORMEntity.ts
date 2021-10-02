@@ -1,6 +1,6 @@
 import { Knex } from 'knex';
 import pg from './pg';
-import { ORMEntityStatic, ORMEntityConstructor, ORMColumnPrimitives, ORMColumnPrimitivesPartial } from './types';
+import { ORMEntityStatic, ORMEntityConstructor, ORMColumns } from './types';
 
 export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns> {
   readonly def: ORMEntityStatic<Columns>;
@@ -13,23 +13,24 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
 
   static hydrate<Columns> (
     this: ORMEntityStatic<Columns>,
-    values: ORMColumnPrimitives<Columns>
+    values: ORMColumns<Columns, any>
   ) {
+    this.validate('hydrate', values);
     return new this({
       def: this,
-      values: this.validate('hydrate', values)
+      values
     });
   }
 
   toJSON () {
     const json = {};
     for (const column of Object.keys(this.values)) {
-      json[column] = this.values[column].value
+      json[column] = this.values[column];
     }
     return json;
   }
 
-  static query<Columns>(
+  static select<Columns>(
     this: ORMEntityStatic<Columns>,
     query?: Knex.QueryBuilder<ORMEntity<Columns>>,
   ): AsyncIterable<ORMEntity<Columns>> {
@@ -48,7 +49,7 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
     }
   }
 
-  static async queryOne<Columns>(
+  static async selectOne<Columns>(
     this: ORMEntityStatic<Columns>,
     query?: Knex.QueryBuilder<ORMEntity<Columns>>,
   ): Promise<ORMEntity<Columns>> {
@@ -63,17 +64,17 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
 
   static async insert<Columns>(
     this: ORMEntityStatic<Columns>,
-    row: ORMColumnPrimitivesPartial<Columns>
+    row: Partial<ORMColumns<Columns, any>>
   ): Promise<ORMEntity<Columns>>;
   static async insert<Columns>(
     this: ORMEntityStatic<Columns>,
-    row: Array<ORMColumnPrimitivesPartial<Columns>>
+    row: Array<Partial<ORMColumns<Columns, any>>>
   ): Promise<Array<ORMEntity<Columns>>>;
   static async insert<Columns>(
     this: ORMEntityStatic<Columns>,
-    rowOrRows: ORMColumnPrimitivesPartial<Columns> | Array<ORMColumnPrimitivesPartial<Columns>>
+    rowOrRows: Partial<ORMColumns<Columns, any>> | Array<Partial<ORMColumns<Columns, any>>>
   ): Promise<ORMEntity<Columns> | Array<ORMEntity<Columns>>> {
-    let rows: Array<ORMColumnPrimitivesPartial<Columns>>;
+    let rows: Array<Partial<ORMColumns<Columns, any>>>;
     let isArray: boolean;
     if (!Array.isArray(rowOrRows)) {
       isArray = false;
@@ -89,7 +90,7 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
 
     const query = pg.queryBuilder().insert(rows).from(this.table).returning(this.buildSelect());
     const insertedRows = await query;
-    const entities = (insertedRows as ORMColumnPrimitives<Columns>[]).map(this.hydrate);
+    const entities = (insertedRows as ORMColumns<Columns, any>[]).map(this.hydrate);
     if (isArray) {
       return entities;
     } else {
@@ -99,16 +100,13 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
 
   public async update<Columns> (
     this: ORMEntity<Columns>,
-    row: ORMColumnPrimitivesPartial<Columns>
+    row: Partial<ORMColumns<Columns, any>>
   ): Promise<void> {
-    const updatedValues = this.def.validate('update', row);
-    for (const column of Object.keys(row)) {
-      updatedValues[column] = new this.def.ColumnValue[column](row[column]);
-    }
+    this.def.validate('update', row);
     const where = this.buildWhere();
     await pg.queryBuilder().update(row).from(this.def.table).where(where);
-    for (const column of Object.keys(updatedValues)) {
-      this.values[column] = updatedValues[column];
+    for (const column of Object.keys(row)) {
+      this.values[column] = row[column];
     }
   }
 
@@ -123,7 +121,8 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
     this: ORMEntityStatic<Columns>
   ): string[] {
     const select: string[] = [];
-    for (const key of Object.keys(this.ColumnValue)) {
+    for (const key of Object.keys(this.columns)) {
+      if (this.columns[key].selectable === false) continue;
       select.push(`${this.table}.${key}`);
     }
     return select;
@@ -131,29 +130,44 @@ export abstract class ORMEntity<Columns> implements ORMEntityConstructor<Columns
 
   private buildWhere (): any {
     const where: any = {};
-    for (const key of this.def.pkeys) {
-      where[`${this.def.table}.${key}`] = (this.values[key] as any).value;
+    for (const key of Object.keys(this.def.columns)) {
+      if (this.def.columns[key].primaryKey !== true) continue;
+      where[`${this.def.table}.${key}`] = this.values[key];
     }
     return where;
   }
 
   static validate<Columns> (
     this: ORMEntityStatic<Columns>,
-    functionName: string,
-    values: ORMColumnPrimitivesPartial<Columns>
-  ): Columns {
+    method: 'insert' | 'update' | 'hydrate',
+    values: Partial<ORMColumns<Columns, any>>
+  ): void {
     const errors: string[] = [];
-    const row = {};
-    for (const column of Object.keys(this.ColumnValue)) {
-      try {
-        row[column] = new this.ColumnValue[column](values[column]);
-      } catch (e) {
-        errors.push(`Column ${column}: ` + (e as Error).message);
+    for (const key of Object.keys(values)) {
+      const column = this.columns[key as keyof Columns];
+      const value = values[key];
+      if (value === null) {
+        if (column.nullable !== true) {
+          errors.push(`${key} expected not null, received: null`);
+        }
+      } else if (value.constructor !== column.type) {
+        errors.push(`${key} expected: ${column.type.name}, received: ${JSON.stringify(value)}`);
+      } else if (column.valid && !column.valid(value)) {
+        errors.push(`${key} failed validation, received: ${JSON.stringify(value)}`);
+      }
+    }
+    if (method === 'insert') {
+      const requiredColumns = Object.keys(this.columns).filter(key =>
+        this.columns[key as keyof Columns].required === true
+      );
+      for (const requiredColumn of requiredColumns) {
+        if (typeof values[requiredColumn] === 'undefined') {
+          errors.push(`${requiredColumn} is required`);
+        }
       }
     }
     if (errors.length) {
-      throw new TypeError(`${this.table}.${functionName}() failed to validate:\n  ${errors.join('\n  ')}`);
+      throw new TypeError(`${this.table}.${method}() failed to validate:\n  ${errors.join('\n  ')}`);
     }
-    return row as Columns;
   };
 };
